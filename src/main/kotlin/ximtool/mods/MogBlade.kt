@@ -65,9 +65,9 @@ private class MogBladeApplier(val context: ModContext) {
         rootNode.deleteRecursive { it.sectionHeader.sectionType == SectionType.S2A_SkeletonMesh }
 
         val textureName = TextureName("tim     mogblade")
-        rootNode.addChild(DdsToTexture.convert(path = texturePath, datId = DatId("mogt"), name = textureName, mystery = 0x100))
+        rootNode.addChild(DdsToTexture.convert(path = texturePath, datId = DatId("mogt"), name = textureName))
 
-        rootNode.addChild(makeShinySkeletonMesh(textureName))
+//        rootNode.addChild(makeShinySkeletonMesh(textureName))
         rootNode.addChild(makeMatteSkeletonMesh(textureName))
 
         addParticleEffect(rootNode)
@@ -153,7 +153,7 @@ private class MogBladeApplier(val context: ModContext) {
         val effectDirectory = rootNode.addChild(DirectorySection.make(directoryName))
 
         val particleTextureName = TextureName("tim     mogglow ")
-        val particleTexture = DdsToTexture.convert(particleTexturePath, DatId("ptxt"), particleTextureName, mystery = 512)
+        val particleTexture = DdsToTexture.convert(particleTexturePath, DatId("ptxt"), particleTextureName)
         effectDirectory.addChild(particleTexture)
 
         val particleMeshId = DatId("pmsh")

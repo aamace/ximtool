@@ -4,12 +4,12 @@ import ximtool.dat.*
 
 object DdsToTexture {
 
-    fun convert(path: String, datId: DatId, name: TextureName, mystery: Int): ByteArray {
+    fun convert(path: String, datId: DatId, name: TextureName): ByteArray {
         val bytes = ResourceReader.readBytes(path)
-        return convert(bytes, datId, name, mystery)
+        return convert(bytes, datId, name)
     }
 
-    private fun convert(bytes: ByteArray, datId: DatId, name: TextureName, mystery: Int): ByteArray {
+    private fun convert(bytes: ByteArray, datId: DatId, name: TextureName): ByteArray {
         val br = ByteReader(bytes)
         val header = DdsStructs.parseHeader(br)
         val dataSize = br.bytes.size - br.position
@@ -41,7 +41,7 @@ object DdsToTexture {
 
         out.write(header.ddspf.dwFourCC.reversed())
         out.write32(8192) // ???
-        out.write32(mystery) // ??? important
+        out.write32(header.dwWidth * 2)
 
         br.bytes.copyInto(
             destination = out.bytes,
