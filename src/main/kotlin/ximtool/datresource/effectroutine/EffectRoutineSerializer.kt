@@ -2,16 +2,9 @@ package ximtool.datresource.effectroutine
 
 import ximtool.dat.*
 
-class EffectRoutineConfig(
-    val datId: DatId,
-    val onInitializeEffects: List<OnInitializeEffect> = listOf(OnInitializeEffects.EndEffect),
-    val effects: List<Effect>,
-    val onCompleteEffects: List<OnCompleteEffect> = listOf(OnCompleteEffects.EndEffect),
-)
+object EffectRoutineSerializer {
 
-object EffectRoutine {
-
-    fun make(config: EffectRoutineConfig): ByteArray {
+    fun serialize(config: EffectRoutine): ByteArray {
         sanityCheckConfig(config)
 
         var size = 0x40 // Size of header
@@ -49,7 +42,7 @@ object EffectRoutine {
         return out.bytes
     }
 
-    private fun sanityCheckConfig(config: EffectRoutineConfig) {
+    private fun sanityCheckConfig(config: EffectRoutine) {
         check(config.onInitializeEffects.lastOrNull() == OnInitializeEffects.EndEffect)
 
         check(config.effects.firstOrNull() is Effects.StartRoutine)

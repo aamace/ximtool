@@ -7,9 +7,9 @@ import ximtool.dat.SectionType
 
 object EndSection {
 
-    fun make(): ByteArray {
+    fun serialize(datId: DatId): ByteArray {
         val out = ByteReader(ByteArray(0x10))
-        SectionHeader(DatId("end "), SectionType.S00_End, 0x10).write(out)
+        SectionHeader(datId, SectionType.S00_End, 0x10).write(out)
         return out.bytes
     }
 

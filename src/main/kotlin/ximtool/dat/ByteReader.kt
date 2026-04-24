@@ -24,6 +24,10 @@ class ByteReader(val bytes: ByteArray) {
         return id.toString()
     }
 
+    fun nextTextureName(): TextureName {
+        return TextureName(nextString(0x10))
+    }
+
     fun nextZeroTerminatedString(): String {
         val id = StringBuilder()
 
@@ -229,6 +233,10 @@ class ByteReader(val bytes: ByteArray) {
 
     fun subArray(length: Int, offset: Int = position): ByteArray {
         return bytes.sliceArray(offset until (offset + length))
+    }
+
+    fun nextVector2f(): Vector2f {
+        return Vector2f(nextFloat(), nextFloat())
     }
 
     fun nextVector3f(): Vector3f {

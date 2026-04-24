@@ -19,6 +19,17 @@ object OnCompleteEffects {
         }
     }
 
+    class NotImplementedRoutine(val opCode: Int, val body: ByteArray): OnCompleteEffect {
+        override fun sizeInBytes(): Int {
+            return 4 + body.size
+        }
+
+        override fun write(byteReader: ByteReader) {
+            byteReader.write(opCode = opCode, size = sizeInBytes())
+            byteReader.write(body)
+        }
+    }
+
 }
 
 private fun ByteReader.write(opCode: Int, size: Int) {

@@ -1,14 +1,15 @@
 package ximtool.mods
 
 import ximtool.dat.*
-import ximtool.datresource.DirectorySection
-import ximtool.datresource.EndSection
-import ximtool.datresource.KeyFrameValue
-import ximtool.datresource.effectroutine.EffectRoutine
-import ximtool.datresource.effectroutine.EffectRoutineConfig
+import ximtool.datresource.KeyFrameEntry
+import ximtool.datresource.SkeletonMeshInstructions
+import ximtool.datresource.StandardJointPositions
+import ximtool.datresource.addSubDirectory
+import ximtool.datresource.effectroutine.EffectRoutineSerializer
 import ximtool.datresource.effectroutine.Effects
 import ximtool.datresource.particle.*
 import ximtool.math.Matrix4f
+import ximtool.math.PI_f
 import ximtool.math.Vector3f
 import ximtool.misc.Log
 import ximtool.misc.LogColor
@@ -26,13 +27,6 @@ private const val particleObjPath = "MogBlade/particle.obj"
 
 private const val destinationModelId = 268 // [Bronze Sword]
 
-private class ModContext(
-    val race: RaceGenderConfig,
-    val joint: Int,
-    val mainHand: Boolean,
-    val itemModelSlot: ItemModelSlot,
-)
-
 fun main() {
     RestoreFromBackup.run(destinationModelId)
     MogBlade.invoke()
@@ -46,33 +40,33 @@ private object MogBlade {
             val jointConfig = WeaponJointMapping[race, WeaponType.Sword]
 
             Log.info("Working on ${race.name} main-hand", LogColor.Green)
-            MogBladeApplier(ModContext(race, jointConfig.mainHand, mainHand = true, ItemModelSlot.Main)).apply()
+            MogBladeApplier(WeaponModContext(race, jointConfig.mainHand, mainHand = true, ItemModelSlot.Main)).apply()
 
             Log.info("Working on ${race.name} off-hand", LogColor.Green)
-            MogBladeApplier(ModContext(race, jointConfig.offHand, mainHand = false, ItemModelSlot.Sub)).apply()
+            MogBladeApplier(WeaponModContext(race, jointConfig.offHand, mainHand = false, ItemModelSlot.Sub)).apply()
         }
     }
 
 }
 
-private class MogBladeApplier(val context: ModContext) {
+private class MogBladeApplier(val context: WeaponModContext) {
 
     fun apply() {
         val outputFile = DatFile.itemModel(context.race, context.itemModelSlot, destinationModelId)
-        val rootNode = DatTree.parse(outputFile.readBytes())
+        val rootDirectory = DatTree.parse(outputFile.readBytes())
 
-        rootNode.deleteRecursive { it.sectionHeader.sectionType == SectionType.S20_Texture }
-        rootNode.deleteRecursive { it.sectionHeader.sectionType == SectionType.S2A_SkeletonMesh }
+        rootDirectory.deleteRecursive { it.sectionType == SectionType.S20_Texture }
+        rootDirectory.deleteRecursive { it.sectionType == SectionType.S2A_SkeletonMesh }
 
         val textureName = TextureName("tim     mogblade")
-        rootNode.addChild(DdsToTexture.convert(path = texturePath, datId = DatId("mogt"), name = textureName))
+        rootDirectory.addChild(DdsToTexture.convert(path = texturePath, datId = DatId("mogt"), name = textureName))
 
-//        rootNode.addChild(makeShinySkeletonMesh(textureName))
-        rootNode.addChild(makeMatteSkeletonMesh(textureName))
+        rootDirectory.addChild(makeShinySkeletonMesh(textureName))
+        rootDirectory.addChild(makeMatteSkeletonMesh(textureName))
 
-        addParticleEffect(rootNode)
+        addParticleEffect(rootDirectory)
 
-        val output = rootNode.toArray()
+        val output = rootDirectory.serialize()
         outputFile.writeBytes(output)
 
         val localFile = File("./output/MogBlade/${context.race}-${context.itemModelSlot}.DAT")
@@ -81,59 +75,43 @@ private class MogBladeApplier(val context: ModContext) {
         localFile.writeBytes(output)
     }
 
-    private fun makeShinySkeletonMesh(textureName: TextureName): ByteArray {
+    private fun makeShinySkeletonMesh(textureName: TextureName): SkeletonMesh {
         val obj = ObjLoader.load(shinyObjPath)
         applyObjTransform(obj)
 
-        val instructions = listOf(
-            SkeletonMeshInstructions.MaterialInstruction(
+        return ObjToSkeletonMeshConverter.convert(ObjToSkeletonMeshConfig(
+            datId = StandardDatIds.weaponMesh(context.mainHand),
+            objData = obj,
+            joint = context.joint,
+            materialInstruction = SkeletonMeshInstructions.MaterialInstruction(
                 ambientMultiplier = 0.6f,
                 specularHighlightEnabled = true,
                 specularHighlightPower = 50f,
             ),
-            SkeletonMeshInstructions.TextureInstruction(textureName = textureName),
-            obj.toTriMeshInstruction(),
-            SkeletonMeshInstructions.EndInstruction,
-        )
-
-        return ObjToSkeletonMeshConverter.convert(ObjToSkeletonMeshConfig(
-            datId = getMeshDatId(),
-            objData = obj,
-            joint = context.joint,
-            instructions = instructions,
+            textureInstruction = SkeletonMeshInstructions.TextureInstruction(textureName = textureName)
         ))
     }
 
-    private fun makeMatteSkeletonMesh(textureName: TextureName): ByteArray {
+    private fun makeMatteSkeletonMesh(textureName: TextureName): SkeletonMesh {
         val obj = ObjLoader.load(matteObjPath)
         applyObjTransform(obj)
 
-        val instructions = listOf(
-            SkeletonMeshInstructions.MaterialInstruction(
-                ambientMultiplier = 0.80f,
-            ),
-            SkeletonMeshInstructions.TextureInstruction(textureName = textureName),
-            obj.toTriMeshInstruction(),
-            SkeletonMeshInstructions.EndInstruction,
-        )
-
         return ObjToSkeletonMeshConverter.convert(ObjToSkeletonMeshConfig(
-            datId = getMeshDatId(),
+            datId = StandardDatIds.weaponMesh(context.mainHand),
             objData = obj,
             joint = context.joint,
-            instructions = instructions,
+            materialInstruction = SkeletonMeshInstructions.MaterialInstruction(
+                ambientMultiplier = 0.80f,
+            ),
+            textureInstruction = SkeletonMeshInstructions.TextureInstruction(textureName = textureName),
         ))
-    }
-
-    private fun getMeshDatId(): DatId {
-        return if (context.mainHand) { DatId("wep0") } else { DatId("wep1") }
     }
 
     private fun applyObjTransform(obj: ObjData) {
         // Fixes the forward/up axis, flips the texture-coordinates, and ensures the moogle is facing outward.
         // (Alternatively, this could've been fixed in Blender)
         val zRotateSign = if (context.mainHand) { -1f } else { 1f }
-        val rotation = Matrix4f().rotateZInPlace(zRotateSign * PI_f /2f).rotateXInPlace(-PI_f /2f)
+        val rotation = Matrix4f().rotateZInPlace(zRotateSign * PI_f / 2f).rotateXInPlace(-PI_f / 2f)
 
         obj.vertices.forEach {
             rotation.transformInPlace(it)
@@ -148,31 +126,32 @@ private class MogBladeApplier(val context: ModContext) {
         }
     }
 
-    private fun addParticleEffect(rootNode: Node) {
+    private fun addParticleEffect(rootNode: Directory) {
         val directoryName = if (context.mainHand) { DatId("effr") } else { DatId("effl") }
-        val effectDirectory = rootNode.addChild(DirectorySection.make(directoryName))
+        val effectDirectory = rootNode.addSubDirectory(directoryName)
 
         val particleTextureName = TextureName("tim     mogglow ")
         val particleTexture = DdsToTexture.convert(particleTexturePath, DatId("ptxt"), particleTextureName)
         effectDirectory.addChild(particleTexture)
 
         val particleMeshId = DatId("pmsh")
-        effectDirectory.addChild(ObjToParticleMeshConverter.convert(ObjToParticleMeshConfig(
+        val particleMesh = ObjToParticleMeshConverter.convert(ObjToParticleMeshConfig(
             datId = particleMeshId,
             objData = ObjLoader.load(particleObjPath).also { applyObjTransform(it) },
             textureName = particleTextureName,
-        )))
+        ))
+        effectDirectory.addChild(particleMesh)
 
         val keyFrameValueId = DatId("alph")
-        effectDirectory.addChild(KeyFrameValue.convert(keyFrameValueId, listOf(
-            0f to 0.0f,
-            0.5f to 0.15f,
-            1f to 0.0f,
+        effectDirectory.addChild(KeyFrameValue(keyFrameValueId, listOf(
+            KeyFrameEntry(0f, 0.0f),
+            KeyFrameEntry(0.5f, 0.15f),
+            KeyFrameEntry(1f, 0.0f),
         )))
 
         val particleName = if (context.mainHand) { DatId("gr00") } else { DatId("gl00") }
-        val particleJoint = if (context.mainHand) { 55 } else { 54 }
-        val particleEffect = ParticleGenerator.create(ParticleGeneratorConfig(
+        val particleJoint = StandardJointPositions[WeaponType.Sword, context.itemModelSlot]
+        val particleEffect = ParticleGeneratorSerializer.serialize(ParticleGenerator(
             datId = particleName,
             header = ParticleGeneratorHeader(
                 attachType = AttachType.SourceActorWeapon,
@@ -185,11 +164,11 @@ private class MogBladeApplier(val context: ModContext) {
                 framesPerEmission = 300,
                 continuous = true,
             ),
-            generatorUpdaters = listOf(
+            generatorUpdaters = mutableListOf(
                 ParticleGeneratorUpdaters.AssociationUpdater(followPosition = true, followFacing = true),
                 ParticleGeneratorUpdaters.EndMarker,
             ),
-            particleInitializers = listOf(
+            particleInitializers = mutableListOf(
                 ParticleInitializers.StandardParticleSetup(
                     positionOrientationFlags = 0,
                     renderStateFlags = 0,
@@ -203,54 +182,54 @@ private class MogBladeApplier(val context: ModContext) {
                 ParticleInitializers.RotationInitializer(Vector3f.ZERO),
                 ParticleInitializers.ScaleInitializer(getParticleScale()),
                 ParticleInitializers.ColorInitializer(ByteColor(r = 70, g = 58, b = 18, a = 0)),
-                ParticleInitializers.ColorAlphaKeyFrameSetup(refId = keyFrameValueId),
+                ParticleInitializers.ColorAlphaKeyFrameSetup(config = KeyFrameConfig(keyFrameValueId)),
                 ParticleInitializers.EndMarker,
             ),
-            particleUpdaters = listOf(
+            particleUpdaters = mutableListOf(
                 ParticleUpdaters.LifeTimeUpdater,
                 ParticleUpdaters.TexCoordTranslateU(0.001f),
                 ParticleUpdaters.TexCoordTranslateV(0.0005f),
                 ParticleUpdaters.ColorAlphaKeyFrameUpdater,
                 ParticleUpdaters.EndMarker,
             ),
-            particleExpirationHandlers = listOf(
+            particleExpirationHandlers = mutableListOf(
                 ParticleExpirationHandlers.Repeat,
                 ParticleExpirationHandlers.EndMarker,
             ),
         ))
         effectDirectory.addChild(particleEffect)
 
-        val initRoutineName = if (context.mainHand) { DatId("!w00") } else { DatId("!w10") }
-        effectDirectory.addChild(EffectRoutine.make(EffectRoutineConfig(
+        val initRoutineName = StandardDatIds.weaponInitRoutine(context.mainHand)
+        effectDirectory.addChild(EffectRoutineSerializer.serialize(EffectRoutine(
             datId = initRoutineName,
-            effects = listOf(
+            effects = mutableListOf(
                 Effects.StartRoutine(delay = 0),
                 Effects.ParticleDampenRoutine(delay = 0, duration = 0, refId = particleName),
                 Effects.EndRoutine(delay = 0),
             )
         )))
 
-        val engageRoutineName = if (context.mainHand) { DatId("!w01") } else { DatId("!w11") }
-        effectDirectory.addChild(EffectRoutine.make(EffectRoutineConfig(
+        val engageRoutineName = StandardDatIds.weaponEngageRoutine(context.mainHand)
+        effectDirectory.addChild(EffectRoutineSerializer.serialize(EffectRoutine(
             datId = engageRoutineName,
-            effects = listOf(
+            effects = mutableListOf(
                 Effects.StartRoutine(delay = 0),
                 Effects.ParticleGenRoutine(delay = 0, duration = 0, refId = particleName),
                 Effects.EndRoutine(delay = 0),
             )
         )))
 
-        val disengageRoutineName = if (context.mainHand) { DatId("!w02") } else { DatId("!w12") }
-        effectDirectory.addChild(EffectRoutine.make(EffectRoutineConfig(
+        val disengageRoutineName = StandardDatIds.weaponDisengageRoutine(context.mainHand)
+        effectDirectory.addChild(EffectRoutineSerializer.serialize(EffectRoutine(
             datId = disengageRoutineName,
-            effects = listOf(
+            effects = mutableListOf(
                 Effects.StartRoutine(delay = 0),
                 Effects.ParticleDampenRoutine(delay = 0, duration = 20, refId = particleName),
                 Effects.EndRoutine(delay = 0),
             )
         )))
 
-        effectDirectory.addChild(EndSection.make())
+        effectDirectory.addChild(End())
     }
 
     private fun getParticlePositionOffset(): Vector3f {

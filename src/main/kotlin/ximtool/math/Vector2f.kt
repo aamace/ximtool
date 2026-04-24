@@ -2,6 +2,8 @@ package ximtool.math
 
 data class Vector2f(var x: Float = 0f, var y: Float = 0f) {
 
+    constructor(other: Vector2f): this(other.x, other.y)
+
     fun copyFrom(other: Vector2f): Vector2f {
         x = other.x
         y = other.y
@@ -9,7 +11,7 @@ data class Vector2f(var x: Float = 0f, var y: Float = 0f) {
     }
 
     companion object {
-        val zero = Vector2f(0f, 0f)
+        val ZERO = Vector2f(0f, 0f)
     }
 
     operator fun plus(other: Vector2f) : Vector2f {

@@ -7,10 +7,10 @@ enum class ActorScaleTarget {
 }
 
 data class ActorScaleParams(
-    val scaleSize: ActorScaleTarget,
-    val scalePosition: ActorScaleTarget,
-    val scaleSizeAmount: Float,
-    val scalePositionAmount: Float,
+    var scaleSize: ActorScaleTarget,
+    var scalePosition: ActorScaleTarget,
+    var scaleSizeAmount: Float,
+    var scalePositionAmount: Float,
 )
 
 enum class AttachType(val flag: Int) {
@@ -28,15 +28,26 @@ enum class AttachType(val flag: Int) {
     Sun(0xE),
     Moon(0xF),
     ;
+
+    companion object {
+        fun from(flag: Int): AttachType? {
+            return AttachType.values().firstOrNull { it.flag == flag }
+        }
+    }
+
 }
 
 class ParticleGeneratorHeader(
-    val attachType: AttachType = AttachType.None,
-    val attachedJoint0: Int = 0,
-    val attachedJoint1: Int = 0,
-    val actorScaleParams: ActorScaleParams,
-    val emissionVariance: Int = 0,
-    val framesPerEmission: Int = 0,
-    val particlesPerEmission: Int = 1,
-    val continuous: Boolean = false,
+    var attachType: AttachType = AttachType.None,
+    var attachedJoint0: Int = 0,
+    var attachedJoint1: Int = 0,
+    var attachSourceOriented: Boolean = false,
+    var actorScaleParams: ActorScaleParams,
+    var environmentId: DatId? = null,
+    var emissionVariance: Int = 0,
+    var framesPerEmission: Int = 0,
+    var particlesPerEmission: Int = 0,
+    var continuous: Boolean = false,
+    var autoRun: Boolean = false,
+    var batched: Boolean = false,
 )

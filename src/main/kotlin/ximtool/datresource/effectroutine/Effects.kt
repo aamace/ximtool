@@ -4,14 +4,14 @@ import ximtool.dat.ByteReader
 import ximtool.dat.DatId
 
 sealed interface Effect {
-    val delay: Int
+    var delay: Int
     fun sizeInBytes(): Int
     fun write(byteReader: ByteReader)
 }
 
 object Effects {
 
-    class EndRoutine(override val delay: Int = 0) : Effect {
+    class EndRoutine(override var delay: Int = 0) : Effect {
         override fun sizeInBytes(): Int {
             return 8
         }
@@ -21,7 +21,7 @@ object Effects {
         }
     }
 
-    class StartRoutine(override val delay: Int) : Effect {
+    class StartRoutine(override var delay: Int) : Effect {
         override fun sizeInBytes(): Int {
             return 8
         }
@@ -31,7 +31,7 @@ object Effects {
         }
     }
 
-    class ParticleGenRoutine(override val delay: Int, val duration: Int, val refId: DatId) : Effect {
+    class ParticleGenRoutine(override var delay: Int, var duration: Int, var refId: DatId) : Effect {
         override fun sizeInBytes(): Int {
             return 16
         }
@@ -43,7 +43,7 @@ object Effects {
         }
     }
 
-    class ParticleDampenRoutine(override val delay: Int, val duration: Int, val refId: DatId) : Effect {
+    class ParticleDampenRoutine(override var delay: Int, var duration: Int, var refId: DatId) : Effect {
         override fun sizeInBytes(): Int {
             return 16
         }
@@ -55,7 +55,7 @@ object Effects {
         }
     }
 
-    class StopGeneratorRoutine(override val delay: Int, val duration: Int, val refId: DatId) : Effect {
+    class StopGeneratorRoutine(override var delay: Int, var duration: Int, var refId: DatId) : Effect {
         override fun sizeInBytes(): Int {
             return 16
         }
@@ -67,7 +67,23 @@ object Effects {
         }
     }
 
-    class StartLoopRoutine(override val delay: Int, val refId: DatId) : Effect {
+    class TransitionParticleEffect(override var delay: Int, var duration: Int, var stopEffect: DatId, var startEffect: DatId): Effect {
+        override fun sizeInBytes() = 28
+
+        override fun write(byteReader: ByteReader) {
+            byteReader.write(opCode = 0x3F, size = sizeInBytes(), delay = delay, duration = duration)
+
+            byteReader.write(stopEffect)
+            byteReader.write32(0)
+
+            byteReader.write(startEffect)
+            byteReader.write32(0)
+
+            byteReader.write32(0)
+        }
+    }
+
+    class StartLoopRoutine(override var delay: Int, var refId: DatId) : Effect {
         override fun sizeInBytes(): Int {
             return 20
         }
@@ -80,7 +96,7 @@ object Effects {
         }
     }
 
-    class EndLoopRoutine(override val delay: Int, val refId: DatId) : Effect {
+    class EndLoopRoutine(override var delay: Int, var refId: DatId) : Effect {
         override fun sizeInBytes(): Int {
             return 16
         }
@@ -89,6 +105,17 @@ object Effects {
             byteReader.write(opCode = 0x85, size = sizeInBytes(), delay = delay, duration = 0)
             byteReader.write(refId)
             byteReader.write32(0)
+        }
+    }
+
+    class NotImplementedRoutine(val opCode: Int, override var delay: Int, var duration: Int, val body: ByteArray): Effect {
+        override fun sizeInBytes(): Int {
+            return 4 + 4 + body.size
+        }
+
+        override fun write(byteReader: ByteReader) {
+            byteReader.write(opCode = opCode, size = sizeInBytes(), delay = delay, duration = duration)
+            byteReader.write(body)
         }
     }
 

@@ -1,6 +1,11 @@
 package ximtool.resource
 
-import ximtool.dat.*
+import ximtool.dat.ByteColor
+import ximtool.dat.DatId
+import ximtool.dat.ParticleMesh
+import ximtool.dat.TextureName
+import ximtool.datresource.ParticleMeshEntry
+import ximtool.datresource.ParticleMeshVertex
 
 class ObjToParticleMeshConfig(
     val datId: DatId,
@@ -10,51 +15,31 @@ class ObjToParticleMeshConfig(
 )
 
 object ObjToParticleMeshConverter {
-    fun convert(config: ObjToParticleMeshConfig): ByteArray {
+    fun convert(config: ObjToParticleMeshConfig): ParticleMesh {
         return ObjToParticleMesh(config).convert()
     }
 }
 
 private class ObjToParticleMesh(val config: ObjToParticleMeshConfig) {
 
-    fun convert(): ByteArray {
+    fun convert(): ParticleMesh {
         val obj = config.objData
 
-        val size = (0x10 + 0x1E + config.objData.faces.size * 3 * 0x24).padTo16()
-        val out = ByteReader(ByteArray(size))
-
-        val header = SectionHeader(config.datId, SectionType.S1F_ParticleMesh, size)
-        header.write(out)
-
-        out.write32(0x06) // Version
-
-        out.write8(1) // Number of meshes with textures
-        out.write8(0) // Number of meshes without textures
-        out.write16(obj.faces.size) // Total number of triangles
-
-        // Triangles-per-mesh (array)
-        out.write16(obj.faces.size)
-        out.write16(0)
-        out.write16(0)
-
-        out.write(config.textureName)
+        val vertices = ArrayList<ParticleMeshVertex>()
 
         for (face in obj.faces) {
             for (index in face.indices) {
-                val position = obj.vertices[index.p]
-                out.write(position)
-
-                val normal = obj.normals[index.n]
-                out.write(normal)
-
-                out.writeRgba(config.vertexColor)
-
-                val uv = obj.uvs[index.u]
-                out.write(uv)
+                vertices += ParticleMeshVertex(
+                    position = obj.vertices[index.p],
+                    normal = obj.normals[index.n],
+                    color = config.vertexColor,
+                    uv = obj.uvs[index.u],
+                )
             }
         }
 
-        return out.bytes
+        val entry = ParticleMeshEntry(textureName = config.textureName, vertices = vertices)
+        return ParticleMesh(config.datId, listOf(entry))
     }
 
 }

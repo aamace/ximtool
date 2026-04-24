@@ -9,7 +9,18 @@ sealed interface ParticleGeneratorUpdater {
 
 object ParticleGeneratorUpdaters {
 
-    class AssociationUpdater(val followPosition: Boolean, val followFacing: Boolean, val rate: Int = 255): ParticleGeneratorUpdater {
+    data class AssociationUpdater(val followPosition: Boolean, val followFacing: Boolean, val rate: Int = 255): ParticleGeneratorUpdater {
+
+        companion object {
+            fun read(byteReader: ByteReader): AssociationUpdater {
+                val config = byteReader.next32()
+                val followPosition = (config and 0x1) != 0
+                val followFacing = (config and 0x2) != 0
+                val rate = config ushr 2
+                return AssociationUpdater(followPosition, followFacing, rate)
+            }
+        }
+
         override fun sizeInBytes(): Int {
             return 8
         }

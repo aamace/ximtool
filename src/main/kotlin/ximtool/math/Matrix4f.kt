@@ -1,9 +1,8 @@
 package ximtool.math
 
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.tan
+import kotlin.math.*
+
+const val PI_f = PI.toFloat()
 
 class Matrix4f {
 

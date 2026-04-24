@@ -1,17 +1,18 @@
 package ximtool.dat
 
-class Node(
-    val parent: Node?,
-    val sectionHeader: SectionHeader,
-    val data: ByteArray,
-    val children: MutableList<Node> = ArrayList(),
-)
+import ximtool.datresource.KeyFrameValueSection
+import ximtool.datresource.SkeletonMeshSection
+import ximtool.datresource.effectroutine.EffectRoutineSection
+import ximtool.datresource.particle.ParticleGeneratorSection
+import kotlin.reflect.KClass
+import kotlin.reflect.safeCast
 
 object DatTree {
 
-    fun parse(rawDat: ByteArray) : Node {
-        var rootNode: Node? = null
-        var currentNode: Node? = null
+    fun parse(rawDat: ByteArray): Directory {
+        var root: Directory? = null
+        var currentDirectory: Directory? = null
+        val parentLink = HashMap<Directory, Directory>()
 
         val byteReader = ByteReader(rawDat)
 
@@ -24,64 +25,106 @@ object DatTree {
             val header = SectionHeader.read(byteReader)
             val data = byteReader.subArray(length = header.sectionSize, offset = sectionStart)
 
-            val node = Node(currentNode, header, data)
-            currentNode?.children?.add(node)
+            val node = when (header.sectionType) {
+                SectionType.S00_End -> End(header.sectionId)
+                SectionType.S01_Directory -> Directory(header.sectionId)
+                SectionType.S05_ParticleGenerator -> ParticleGeneratorSection.read(data)
+                SectionType.S07_EffectRoutine -> EffectRoutineSection.read(data)
+                SectionType.S19_ParticleKeyFrameData -> KeyFrameValueSection.read(data)
+                SectionType.S2A_SkeletonMesh -> SkeletonMeshSection.read(data)
+                else -> UnimplementedResource(header.sectionId, header.sectionType, data)
+            }
 
-            if (rootNode == null) { rootNode = node }
+            currentDirectory?.children?.add(node)
 
-            if (header.sectionType == SectionType.S01_Directory) {
-                currentNode = node
-            } else if (header.sectionType == SectionType.S00_End) {
-                currentNode = currentNode?.parent
+            if (node is Directory) {
+                if (root == null) { root = node }
+                parentLink[node] = currentDirectory ?: node
+                currentDirectory = node
+            } else if (node is End) {
+                currentDirectory = parentLink[currentDirectory]
             }
 
             byteReader.position = sectionStart + header.sectionSize
         }
 
-        return rootNode!!
+        return root!!
+    }
+
+    fun fromItemModel(raceGenderConfig: RaceGenderConfig, itemModelSlot: ItemModelSlot, itemModelId: Int): Directory {
+        val file = DatFile.itemModel(raceGenderConfig, itemModelSlot, itemModelId)
+        return parse(file.readBytes())
     }
 
 }
 
-fun Node.deleteRecursive(filter: (Node) -> Boolean) {
-    children.forEach { it.deleteRecursive(filter) }
+fun Directory.delete(datResource: DatResource) {
+    delete(datResource.sectionType, datResource.datId)
+}
+
+fun Directory.delete(sectionType: SectionType, datId: DatId) {
+    children.removeAll { it.sectionType == sectionType && it.datId == datId }
+}
+
+fun Directory.deleteRecursive(sectionType: SectionType) {
+    deleteRecursive { it.sectionType == sectionType }
+}
+
+fun Directory.deleteRecursive(filter: (DatResource) -> Boolean) {
+    children.filterIsInstance<Directory>().forEach { it.deleteRecursive(filter) }
     children.removeAll { filter(it) }
 }
 
-fun Node.addChild(childHeader: SectionHeader, childBody: ByteArray): Node {
-    check(sectionHeader.sectionType == SectionType.S01_Directory)
-    val child = Node(this, childHeader, childBody)
+fun <T: DatResource> Directory.addChild(child: T): T {
     children += child
     sortChildren()
     return child
 }
 
-fun Node.addChild(childBody: ByteArray): Node {
-    val childHeader = SectionHeader.read(ByteReader(childBody))
-    return addChild(childHeader, childBody)
+fun Directory.addChild(raw: ByteArray): DatResource {
+    val header = SectionHeader.read(ByteReader(raw))
+    return addChild(UnimplementedResource(header.sectionId, header.sectionType, raw))
 }
 
-fun Node.toArray(): ByteArray {
-    val array = ByteArray(size())
-    write(ByteReader(array))
-    return array
+fun <T: DatResource> Directory.getChild(childType: KClass<T>, childId: DatId): T {
+    val match = children.firstOrNull { it.datId == childId && childType.isInstance(it) }
+    return childType.safeCast(match) ?: throw IllegalStateException("[${datId}] Did not have a child matching $childType/$childId")
 }
 
-fun Node.size(): Int {
-    return sectionHeader.sectionSize + children.sumOf { it.size() }
+fun Directory.getChild(childType: SectionType, childId: DatId): DatResource {
+    return children.firstOrNull { it.datId == childId && it.sectionType == childType }
+        ?: throw IllegalStateException("[${datId}] Did not have a child matching $childType/$childId")
 }
 
-private fun Node.write(byteReader: ByteReader) {
-    byteReader.write(data)
-    children.forEach { it.write(byteReader) }
+fun <T: DatResource> Directory.getChildRecursive(childType: KClass<T>, childId: DatId): T {
+    var match = children.firstOrNull { it.datId == childId && childType.isInstance(it) }
+
+    if (match == null) {
+        val subdirectories = getChildren(Directory::class)
+        match = subdirectories.firstNotNullOfOrNull { it.getChildRecursive(childType, childId) }
+    }
+
+    return childType.safeCast(match) ?: throw IllegalStateException("[${datId}] Did not have a child matching $childType/$childId")
 }
 
-private fun Node.sortChildren() {
+fun Directory.getChildren(sectionType: SectionType): List<DatResource> {
+    return getChildren { it.sectionType == sectionType }
+}
+
+fun <T: DatResource> Directory.getChildren(type: KClass<T>): List<T> {
+    return children.mapNotNull { type.safeCast(it) }
+}
+
+fun Directory.getChildren(filter: (DatResource) -> Boolean): List<DatResource> {
+    return children.filter(filter)
+}
+
+private fun Directory.sortChildren() {
     children.sortBy {
-        when (it.sectionHeader.sectionType) {
+        when (it.sectionType) {
             SectionType.S00_End -> Int.MAX_VALUE
             SectionType.S01_Directory -> Int.MAX_VALUE - 1
-            else -> it.sectionHeader.sectionType.code
+            else -> it.sectionType.code
         }
     }
 }

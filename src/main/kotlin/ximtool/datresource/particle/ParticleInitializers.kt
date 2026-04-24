@@ -27,6 +27,12 @@ enum class LinkedDataType(val value: Int) {
     Null(0x57),
     Unknown(-1),
     ;
+
+    companion object {
+        fun from(value: Int): LinkedDataType {
+            return LinkedDataType.values().firstOrNull { it.value == value } ?: throw IllegalStateException("Unknown linked data type 0x${value.toString(0x10)}")
+        }
+    }
 }
 
 enum class RotationOrder {
@@ -38,7 +44,8 @@ class InitializerContext(
     val allocationPoolSize: Int,
 )
 
-class KeyFrameConfig(
+data class KeyFrameConfig(
+    val refId: DatId,
     val interpolationFn: Int = 0,
     val cycleCount: Int = 1,
 )
@@ -47,12 +54,20 @@ sealed interface ParticleInitializer {
     val opCode: Int
     fun sizeInBytes(): Int
     fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext)
-    fun allocationSizeInBytes(): Int = 0
+    fun allocationType(): DynamicParticleData? = null
 }
 
 object ParticleInitializers {
 
-    class StandardParticleSetup(
+    interface NoData: ParticleInitializer {
+        override fun sizeInBytes(): Int = 4
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+        }
+    }
+
+    data class StandardParticleSetup(
         val positionOrientationFlags: Int,
         val renderStateFlags: Int,
         val linkedDatId: DatId,
@@ -61,6 +76,33 @@ object ParticleInitializers {
         val lifeSpan: Int,
         val lifeSpanVariance: Int,
     ): ParticleInitializer {
+
+        companion object {
+            fun read(byteReader: ByteReader): StandardParticleSetup {
+                val positionOrientationFlags = byteReader.next16()
+                val renderStateFlags = byteReader.next16()
+                byteReader.position += 0x04
+                val linkedDatId = byteReader.nextDatId()
+
+                byteReader.position += 0x04
+                val basePosition = byteReader.nextVector3f()
+
+                byteReader.next8()
+                val linkedDataType = LinkedDataType.from(byteReader.next8())
+                val lifeSpan = byteReader.next16()
+                val lifeSpanVariance = byteReader.next16()
+
+                return StandardParticleSetup(
+                    positionOrientationFlags = positionOrientationFlags,
+                    renderStateFlags = renderStateFlags,
+                    linkedDatId = linkedDatId,
+                    basePosition = basePosition,
+                    linkedDataType = linkedDataType,
+                    lifeSpan = lifeSpan,
+                    lifeSpanVariance = lifeSpanVariance,
+                )
+            }
+        }
 
         override val opCode = 0x01
 
@@ -85,61 +127,265 @@ object ParticleInitializers {
 
     }
 
-    class RotationInitializer(val rotation: Vector3f): ParticleInitializer {
+    data class VelocityInitializer(val velocity: Vector3f): ParticleInitializer {
+
+        override val opCode = 0x02
+
+        override fun sizeInBytes() = 16
+
+        override fun allocationType() = DynamicParticleDataTypes.PositionData
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write(velocity)
+        }
+
+    }
+
+    data class PositionVarianceMedium(
+        var radiusVariance: Float,
+        var radius: Float,
+        var radiusScale: Vector3f,
+        var yAxisRotation: Float = 0f,
+        var unknown: Float = 0f,
+    ): ParticleInitializer {
+        companion object {
+            fun read(byteReader: ByteReader): PositionVarianceMedium {
+                return PositionVarianceMedium(
+                    radiusVariance = byteReader.nextFloat(),
+                    radius = byteReader.nextFloat(),
+                    radiusScale = byteReader.nextVector3f(),
+                    unknown = byteReader.nextFloat(),
+                    yAxisRotation = byteReader.nextFloat()
+                )
+            }
+        }
+
+        override val opCode = 0x07
+
+        override fun sizeInBytes() = 32
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.writeFloat(radiusVariance)
+            byteReader.writeFloat(radius)
+            byteReader.write(radiusScale)
+            byteReader.writeFloat(unknown)
+            byteReader.writeFloat(yAxisRotation)
+        }
+    }
+
+    data class RelativeVelocitySetup(val magnitude: Float): ParticleInitializer {
+
+        override val opCode = 0x08
+
+        override fun sizeInBytes() = 8
+
+        override fun allocationType() = DynamicParticleDataTypes.PositionData
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.writeFloat(magnitude)
+        }
+
+    }
+
+    data class RotationInitializer(val rotation: Vector3f): ParticleInitializer {
 
         override val opCode = 0x09
 
         override fun sizeInBytes() = 16
 
         override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
-            byteReader.write(initializer = this)
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
             byteReader.write(rotation)
         }
 
     }
 
-    class ScaleInitializer(val scale: Vector3f): ParticleInitializer {
+    data class RotationVarianceInitializer(val rotation: Vector3f): ParticleInitializer {
+
+        override val opCode = 0x0A
+
+        override fun sizeInBytes() = 16
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write(rotation)
+        }
+
+    }
+
+    data class RotationVelocitySetup(val velocity: Vector3f): ParticleInitializer {
+
+        override val opCode = 0x0B
+
+        override fun sizeInBytes() = 16
+
+        override fun allocationType() = DynamicParticleDataTypes.RotationData
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write(velocity)
+        }
+    }
+
+    data class RotationVelocityVarianceSetup(val velocity: Vector3f): ParticleInitializer {
+
+        override val opCode = 0x0C
+
+        override fun sizeInBytes() = 16
+
+        override fun allocationType() = DynamicParticleDataTypes.RotationData
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write(velocity)
+        }
+    }
+
+
+    data class ScaleInitializer(val scale: Vector3f): ParticleInitializer {
 
         override val opCode = 0x0F
 
         override fun sizeInBytes() = 16
 
         override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
-            byteReader.write(initializer = this)
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
             byteReader.write(scale)
         }
     }
 
-    class ColorInitializer(val color: ByteColor): ParticleInitializer {
+    data class UniformScaleVariance(val variance: Float): ParticleInitializer {
+
+        override val opCode = 0x11
+
+        override fun sizeInBytes() = 8
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.writeFloat(variance)
+        }
+    }
+
+    data class ScaleVelocitySetup(val velocity: Vector3f): ParticleInitializer {
+
+        override val opCode = 0x12
+
+        override fun sizeInBytes() = 16
+
+        override fun allocationType() = DynamicParticleDataTypes.ScaleData
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write(velocity)
+        }
+    }
+
+    data class ColorInitializer(val color: ByteColor): ParticleInitializer {
 
         override val opCode = 0x16
 
         override fun sizeInBytes() = 8
 
         override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
-            byteReader.write(initializer = this)
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
             byteReader.writeRgba(color)
         }
 
     }
 
-    class ColorRedKeyFrameSetup(refId: DatId, config: KeyFrameConfig = KeyFrameConfig()): KeyFrameValueSetup(refId, config) {
+    data class ColorTransformSetup(val r: Int, val g: Int, val b: Int, val a: Int) : ParticleInitializer {
+        override val opCode = 0x19
+
+        override fun sizeInBytes(): Int = 12
+
+        override fun allocationType() = DynamicParticleDataTypes.ColorTransform
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write16(r)
+            byteReader.write16(g)
+            byteReader.write16(b)
+            byteReader.write16(a)
+        }
+    }
+
+    data class SpriteSheetSetup(val unknown: Int): ParticleInitializer {
+        override val opCode = 0x1D
+
+        override fun sizeInBytes() = 8
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write32(unknown)
+        }
+    }
+
+    data class ColorRedKeyFrameSetup(override val config: KeyFrameConfig): KeyFrameValueSetup {
         override val opCode = 0x2A
     }
 
-    class ColorGreenKeyFrameSetup(refId: DatId, config: KeyFrameConfig = KeyFrameConfig()): KeyFrameValueSetup(refId, config) {
+    data class ColorGreenKeyFrameSetup(override val config: KeyFrameConfig): KeyFrameValueSetup {
         override val opCode = 0x2B
     }
 
-    class ColorBlueKeyFrameSetup(refId: DatId, config: KeyFrameConfig = KeyFrameConfig()): KeyFrameValueSetup(refId, config) {
+    data class ColorBlueKeyFrameSetup(override val config: KeyFrameConfig): KeyFrameValueSetup {
         override val opCode = 0x2C
     }
 
-    class ColorAlphaKeyFrameSetup(refId: DatId, config: KeyFrameConfig = KeyFrameConfig()): KeyFrameValueSetup(refId, config) {
+    data class ColorAlphaKeyFrameSetup(override val config: KeyFrameConfig): KeyFrameValueSetup {
         override val opCode = 0x2D
     }
 
-    class ProjectionBiasInitializer(
+    data class HazeSetup(val unknown: Float, val horizontalStep: Float): ParticleInitializer {
+
+        override val opCode = 0x32
+
+        override fun sizeInBytes() = 12
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.writeFloat(unknown)
+            byteReader.writeFloat(horizontalStep)
+        }
+
+    }
+
+    data class IncrementalRotationInitializer(val rotationStep: Vector3f): ParticleInitializer {
+
+        override val opCode = 0x3B
+
+        override fun sizeInBytes() = 16
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.write(rotationStep)
+        }
+
+    }
+
+    data class RelativeVelocityVarianceSetup(val magnitude: Float): ParticleInitializer {
+
+        override val opCode = 0x41
+
+        override fun sizeInBytes() = 8
+
+        override fun allocationType() = DynamicParticleDataTypes.PositionData
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.writeFloat(magnitude)
+        }
+
+    }
+
+    object ParentColorConfig: NoData {
+        override val opCode = 0x48
+    }
+
+    data class ProjectionBiasInitializer(
         val param0: Float,
         val param1: Float,
     ): ParticleInitializer {
@@ -149,7 +395,7 @@ object ParticleInitializers {
         override fun sizeInBytes() = 12
 
         override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
-            byteReader.write(initializer = this)
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
             byteReader.writeFloat(param0)
             byteReader.writeFloat(param1)
         }
@@ -168,18 +414,30 @@ object ParticleInitializers {
         }
     }
 
-    abstract class KeyFrameValueSetup(
-        val refId: DatId,
-        val config: KeyFrameConfig,
-    ): ParticleInitializer {
+    interface KeyFrameValueSetup: ParticleInitializer {
+        val config: KeyFrameConfig
+
+        companion object {
+            fun read(byteReader: ByteReader): KeyFrameConfig {
+                byteReader.position += 0x04
+                val refId = byteReader.nextDatId()
+                val cycleConfig = byteReader.next32()
+                return KeyFrameConfig(
+                    refId = refId,
+                    interpolationFn = cycleConfig and 0x0F,
+                    cycleCount = (cycleConfig shr 4) + 1,
+                )
+            }
+        }
+
         override fun sizeInBytes() = 16
 
-        override fun allocationSizeInBytes() = 12
+        override fun allocationType() = DynamicParticleDataTypes.KeyFrameData(opCode)
 
         override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
             byteReader.write(initializer = this, allocationOffset = allocationOffset)
             byteReader.write32(0)
-            byteReader.write(refId)
+            byteReader.write(config.refId)
             val adjustedCycleCount = (config.cycleCount - 1).coerceAtLeast(0)
             byteReader.write32(config.interpolationFn + (adjustedCycleCount shl 4))
         }
@@ -188,7 +446,6 @@ object ParticleInitializers {
 }
 
 private fun ByteReader.write(initializer: ParticleInitializer, allocationOffset: Int = 0) {
-    val sizeInDWord = initializer.sizeInBytes()/4
-    val value = initializer.opCode + (sizeInDWord shl 8) + (allocationOffset shl 13)
+    val value = initializer.opCode + ((initializer.sizeInBytes()/4) shl 8) + ((allocationOffset/4) shl 13)
     write32(value)
 }
