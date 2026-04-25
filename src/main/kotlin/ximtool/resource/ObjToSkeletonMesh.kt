@@ -67,29 +67,29 @@ private class ObjToSkeletonMesh(val config: ObjToSkeletonMeshConfig) {
         )
     }
 
-    private fun makeVertexJointMapSection(): List<JointReferenceEntry> {
-        val ref = JointReferenceEntry(
+    private fun makeVertexJointMapSection(): List<SkeletonMeshData.JointReferenceEntry> {
+        val ref = SkeletonMeshData.JointReferenceEntry(
             JointReference(index = 0, mirroredIndex = 0, mirrorAxis = 1),
             JointReference(index = 0, mirroredIndex = 0, mirrorAxis = 0),
         )
 
-        val buffer = ArrayList<JointReferenceEntry>(config.objData.vertices.size)
+        val buffer = ArrayList<SkeletonMeshData.JointReferenceEntry>(config.objData.vertices.size)
         for (i in 0 until config.objData.vertices.size) { buffer += ref }
 
         return buffer
     }
 
-    private fun makeVertexDataSection(): VertexBuffer {
-        val singles = ArrayList<SingleJointVertex>()
+    private fun makeVertexDataSection(): SkeletonMeshData.VertexBuffer {
+        val singles = ArrayList<SkeletonMeshData.SingleJointVertex>()
 
         for (i in config.objData.vertices.indices) {
             val normalIndex = config.objData.positionNormalPairing[i] ?: throw IllegalStateException("Unpaired position $i")
             val position = config.objData.vertices[i]
             val normal = config.objData.normals[normalIndex]
-            singles += SingleJointVertex(position = position, normal = normal)
+            singles += SkeletonMeshData.SingleJointVertex(position = position, normal = normal)
         }
 
-        return VertexBuffer(
+        return SkeletonMeshData.VertexBuffer(
             singleJointVertices = singles,
             doubleJointVertices = emptyList(),
         )

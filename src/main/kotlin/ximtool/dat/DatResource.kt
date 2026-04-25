@@ -61,8 +61,8 @@ data class SkeletonMesh(
     val instructions: List<SkeletonMeshInstructions.Instruction>,
     val jointList: SkeletonMeshData.JointListSection,
     val vertexCountSection: SkeletonMeshData.VertexCountSection,
-    val jointReferenceBuffer: List<JointReferenceEntry>,
-    val vertexBuffer: VertexBuffer,
+    val jointReferenceBuffer: List<SkeletonMeshData.JointReferenceEntry>,
+    val vertexBuffer: SkeletonMeshData.VertexBuffer,
 ): DatResource {
     override val sectionType: SectionType = SectionType.S2A_SkeletonMesh
     override fun serialize() = SkeletonMeshSerializer.serialize(this)

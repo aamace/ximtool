@@ -3,30 +3,6 @@ package ximtool.datresource
 import ximtool.dat.*
 import ximtool.math.Vector3f
 
-class JointReferenceEntry(
-    val jointRef0: JointReference,
-    val jointRef1: JointReference,
-)
-
-class SingleJointVertex(
-    val position: Vector3f,
-    val normal: Vector3f,
-)
-
-class DoubleJointVertex(
-    val p0: Vector3f,
-    val p1: Vector3f = Vector3f(),
-    val n0: Vector3f,
-    val n1: Vector3f = Vector3f(),
-    val joint0Weight: Float = 1.0f,
-    val joint1Weight: Float = 0.0f,
-)
-
-class VertexBuffer(
-    val singleJointVertices: List<SingleJointVertex>,
-    val doubleJointVertices: List<DoubleJointVertex>,
-)
-
 object SkeletonMeshSection {
 
     fun read(data: ByteArray): SkeletonMesh {
@@ -275,26 +251,26 @@ object SkeletonMeshSection {
         )
     }
 
-    private fun readJointBuffer(byteReader: ByteReader, count: Int): List<JointReferenceEntry> {
-        val entries = ArrayList<JointReferenceEntry>(count/2)
+    private fun readJointBuffer(byteReader: ByteReader, count: Int): List<SkeletonMeshData.JointReferenceEntry> {
+        val entries = ArrayList<SkeletonMeshData.JointReferenceEntry>(count/2)
 
         for (i in 0 until count/2) {
             val joint0 = unpackJointRef(byteReader.next16())
             val joint1 = unpackJointRef(byteReader.next16())
-            entries += JointReferenceEntry(joint0, joint1)
+            entries += SkeletonMeshData.JointReferenceEntry(joint0, joint1)
         }
 
         return entries
     }
 
-    private fun readVertexBuffer(byteReader: ByteReader, vertexCountSection: SkeletonMeshData.VertexCountSection): VertexBuffer {
-        val singles = ArrayList<SingleJointVertex>(vertexCountSection.singleJointedVertices)
-        val doubles = ArrayList<DoubleJointVertex>(vertexCountSection.doubleJointedVertices)
+    private fun readVertexBuffer(byteReader: ByteReader, vertexCountSection: SkeletonMeshData.VertexCountSection): SkeletonMeshData.VertexBuffer {
+        val singles = ArrayList<SkeletonMeshData.SingleJointVertex>(vertexCountSection.singleJointedVertices)
+        val doubles = ArrayList<SkeletonMeshData.DoubleJointVertex>(vertexCountSection.doubleJointedVertices)
 
         for (i in 0 until vertexCountSection.singleJointedVertices) {
             val p = byteReader.nextVector3f()
             val n = byteReader.nextVector3f()
-            singles += SingleJointVertex(position = p, normal = n)
+            singles += SkeletonMeshData.SingleJointVertex(position = p, normal = n)
         }
 
         for (i in 0 until vertexCountSection.doubleJointedVertices) {
@@ -321,7 +297,7 @@ object SkeletonMeshSection {
             val n0 = Vector3f(n0x, n0y, n0z)
             val n1 = Vector3f(n1x, n1y, n1z)
 
-            doubles += DoubleJointVertex(
+            doubles += SkeletonMeshData.DoubleJointVertex(
                 p0 = p0,
                 p1 = p1,
                 n0 = n0,
@@ -331,7 +307,7 @@ object SkeletonMeshSection {
             )
         }
 
-        return VertexBuffer(singles, doubles)
+        return SkeletonMeshData.VertexBuffer(singles, doubles)
     }
 
     private fun unpackJointRef(data: Int): JointReference {

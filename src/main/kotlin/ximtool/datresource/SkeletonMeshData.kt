@@ -4,6 +4,7 @@ import ximtool.dat.ByteColor
 import ximtool.dat.ByteReader
 import ximtool.dat.TextureName
 import ximtool.math.Vector2f
+import ximtool.math.Vector3f
 
 data class JointReference(val index: Int, val mirroredIndex: Int, val mirrorAxis: Int)
 
@@ -181,6 +182,30 @@ object SkeletonMeshData {
 
     class JointListSection(
         val jointIndices: List<Int>,
+    )
+
+    class VertexBuffer(
+        val singleJointVertices: List<SingleJointVertex>,
+        val doubleJointVertices: List<DoubleJointVertex>,
+    )
+
+    class JointReferenceEntry(
+        val jointRef0: JointReference,
+        val jointRef1: JointReference,
+    )
+
+    class SingleJointVertex(
+        val position: Vector3f,
+        val normal: Vector3f,
+    )
+
+    class DoubleJointVertex(
+        val p0: Vector3f,
+        val p1: Vector3f = Vector3f(),
+        val n0: Vector3f,
+        val n1: Vector3f = Vector3f(),
+        val joint0Weight: Float = 1.0f,
+        val joint1Weight: Float = 0.0f,
     )
 
 }
