@@ -1,7 +1,12 @@
 ### IntelliJ IDEA ###
 .idea/
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
 out/
+build
+.kotlin/
 output/
+target/
 ximtool.iml
 !**/src/main/**/out/
 !**/src/test/**/out/
