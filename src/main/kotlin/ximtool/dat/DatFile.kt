@@ -2,12 +2,23 @@ package ximtool.dat
 
 import ximtool.Environment
 import ximtool.misc.Log
+import ximtool.misc.LogColor
 import java.io.File
 
 class DatFile private constructor(val path: String) {
     companion object {
         fun itemModel(raceGenderConfig: RaceGenderConfig, itemModelSlot: ItemModelSlot, itemModelId: Int): DatFile {
             val path = EquipmentModelTable.getItemModelPath(raceGenderConfig, itemModelSlot, itemModelId)
+            return DatFile(path)
+        }
+
+        fun romFile(version: Int = 1, folder: Int, file: Int): DatFile {
+            val romNumber = if (version == 1) { "" } else { version.toString() }
+            return DatFile("ROM$romNumber/$folder/$file.DAT")
+        }
+
+        fun fileTableIndex(fileTableIndex: Int): DatFile {
+            val path = FileTables.getFilePath(fileTableIndex) ?: throw IllegalStateException("No file for index $fileTableIndex")
             return DatFile(path)
         }
     }
@@ -23,11 +34,11 @@ fun DatFile.writeBytes(byteArray: ByteArray) {
 
     val backup = getBackupFile()
     if (!backup.exists()) {
-        Log.info("Creating backup $path")
+        Log.info("Creating backup $path", LogColor.Blue)
         file.copyTo(backup)
     }
 
-    Log.info("Writing to $path")
+    Log.info("Writing to $path", LogColor.Blue)
     file.writeBytes(byteArray)
 }
 

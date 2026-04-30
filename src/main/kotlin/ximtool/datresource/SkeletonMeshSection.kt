@@ -320,6 +320,41 @@ object SkeletonMeshSection {
 
 }
 
+fun SkeletonMesh.getJointIndex(index: Int): Int {
+    return if (flagHeader.hasJointArray) {
+        jointList.jointIndices[index]
+    } else {
+        index
+    }
+}
+
+fun SkeletonMeshInstructions.TriStripInstruction.convertToMesh(): SkeletonMeshInstructions.TriMeshInstruction {
+    val convertedEntries = ArrayList<SkeletonMeshInstructions.TriMeshEntry>()
+    val strip = ArrayDeque<SkeletonMeshInstructions.TriStripEntry>()
+
+    for (entry in entries) {
+        strip += entry
+        if (strip.size < 3) { continue }
+
+        convertedEntries += SkeletonMeshInstructions.TriMeshEntry(
+            v0 = strip[0].v,
+            v1 = strip[1].v,
+            v2 = strip[2].v,
+            uv0 = strip[0].uv,
+            uv1 = strip[1].uv,
+            uv2 = strip[2].uv,
+        )
+
+        strip.removeFirst()
+    }
+
+    return SkeletonMeshInstructions.TriMeshInstruction(numTriangles, convertedEntries)
+}
+
 fun Directory.getSkeletonMesh(datId: DatId): SkeletonMesh {
     return getChild(SkeletonMesh::class, datId)
+}
+
+fun Directory.getSkeletonMeshes(): List<SkeletonMesh> {
+    return getChildren(SkeletonMesh::class)
 }

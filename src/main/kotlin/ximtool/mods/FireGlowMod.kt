@@ -10,13 +10,14 @@ import ximtool.misc.Log
 import ximtool.misc.LogColor
 import ximtool.misc.WeaponJointMapping
 import ximtool.misc.WeaponType
+import ximtool.tools.RestoreFromBackup
 
 private const val routerModelId = 603 // Router, the pulse Great-Axe
 private const val baseModelId = 783 // The weapon to add the glow effect to (Fire Tongue)
 private const val destinationModelId = 268 // The weapon to be overwritten (Bronze Sword)
 
 fun main() {
-    RestoreFromBackup.run(destinationModelId)
+    RestoreFromBackup.runMainSub(destinationModelId)
     FireGlowMod.invoke()
 }
 

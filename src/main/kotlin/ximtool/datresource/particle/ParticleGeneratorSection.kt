@@ -160,6 +160,7 @@ object ParticleGeneratorSection {
             0x3B -> ParticleInitializers.IncrementalRotationInitializer(byteReader.nextVector3f())
             0x41 -> ParticleInitializers.RelativeVelocityVarianceSetup(byteReader.nextFloat())
             0x48 -> ParticleInitializers.ParentColorConfig
+            0x4C -> ParticleInitializers.AudioRangeSetup(byteReader.nextFloat(), byteReader.nextFloat(), byteReader.nextFloat())
             0x72 -> ParticleInitializers.ProjectionBiasInitializer(byteReader.nextFloat(), byteReader.nextFloat())
             else -> throw IllegalStateException("Unimplemented particle-initializer ${opCode.toString(0x10)}")
         }

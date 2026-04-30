@@ -15,7 +15,7 @@ object SkeletonMeshInstructions {
         fun write(buffer: ByteReader)
     }
 
-    class MaterialInstruction(
+    data class MaterialInstruction(
         val color: ByteColor = ByteColor(0x80, 0x80, 0x80, 0x00),
         val displayType: Int = 0, // Used for occlusion
         val ambientMultiplier: Float = 1f,
@@ -52,7 +52,7 @@ object SkeletonMeshInstructions {
         }
     }
 
-    class TextureInstruction(val textureName: TextureName): Instruction {
+    data class TextureInstruction(val textureName: TextureName): Instruction {
         override fun getSize(): Int {
             return 0x12
         }
@@ -187,17 +187,27 @@ object SkeletonMeshData {
     class VertexBuffer(
         val singleJointVertices: List<SingleJointVertex>,
         val doubleJointVertices: List<DoubleJointVertex>,
-    )
+    ) {
+        operator fun get(index: Int): Vertex {
+            val single = singleJointVertices.getOrNull(index)
+            if (single != null) { return single }
+
+            val adjustedIndex = index - singleJointVertices.size
+            return doubleJointVertices[adjustedIndex]
+        }
+    }
 
     class JointReferenceEntry(
         val jointRef0: JointReference,
         val jointRef1: JointReference,
     )
 
+    sealed interface Vertex
+
     class SingleJointVertex(
         val position: Vector3f,
         val normal: Vector3f,
-    )
+    ): Vertex
 
     class DoubleJointVertex(
         val p0: Vector3f,
@@ -206,6 +216,6 @@ object SkeletonMeshData {
         val n1: Vector3f = Vector3f(),
         val joint0Weight: Float = 1.0f,
         val joint1Weight: Float = 0.0f,
-    )
+    ): Vertex
 
 }

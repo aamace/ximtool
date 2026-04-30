@@ -1,5 +1,7 @@
 package ximtool.math
 
+import kotlin.math.sqrt
+
 data class Vector2f(var x: Float = 0f, var y: Float = 0f) {
 
     constructor(other: Vector2f): this(other.x, other.y)
@@ -48,6 +50,17 @@ data class Vector2f(var x: Float = 0f, var y: Float = 0f) {
 
     fun scale(scale: Vector2f): Vector2f {
         return Vector2f(x * scale.x, y * scale.y)
+    }
+
+    fun magnitude(): Float {
+        return sqrt(x * x + y * y)
+    }
+
+    fun normalizeInPlace(): Vector2f {
+        val magnitude = magnitude()
+        x /= magnitude
+        y /= magnitude
+        return this
     }
 
 }

@@ -1,8 +1,15 @@
 package ximtool.resource
 
 import java.io.InputStream
+import java.net.URI
 
 object ResourceReader {
+
+    fun getUri(name: String): URI {
+        return object {}.javaClass.getResource("/$name")
+            ?.toURI()
+            ?: throw IllegalStateException("No such resource: $name")
+    }
 
     fun getInputStream(name: String): InputStream {
         return object {}.javaClass.getResource("/$name")

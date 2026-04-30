@@ -1,15 +1,22 @@
 package ximtool.dat
 
 import ximtool.datresource.KeyFrameValueSection
+import ximtool.datresource.SkeletonAnimationSection
 import ximtool.datresource.SkeletonMeshSection
+import ximtool.datresource.SkeletonSection
 import ximtool.datresource.effectroutine.EffectRoutineSection
 import ximtool.datresource.particle.ParticleGeneratorSection
+import ximtool.misc.Log
 import kotlin.reflect.KClass
 import kotlin.reflect.safeCast
 
 object DatTree {
 
-    fun parse(rawDat: ByteArray): Directory {
+    fun parse(datFile: DatFile): Directory {
+        return parse(datFile.readBytes())
+    }
+
+    private fun parse(rawDat: ByteArray): Directory {
         var root: Directory? = null
         var currentDirectory: Directory? = null
         val parentLink = HashMap<Directory, Directory>()
@@ -25,14 +32,22 @@ object DatTree {
             val header = SectionHeader.read(byteReader)
             val data = byteReader.subArray(length = header.sectionSize, offset = sectionStart)
 
-            val node = when (header.sectionType) {
-                SectionType.S00_End -> End(header.sectionId)
-                SectionType.S01_Directory -> Directory(header.sectionId)
-                SectionType.S05_ParticleGenerator -> ParticleGeneratorSection.read(data)
-                SectionType.S07_EffectRoutine -> EffectRoutineSection.read(data)
-                SectionType.S19_ParticleKeyFrameData -> KeyFrameValueSection.read(data)
-                SectionType.S2A_SkeletonMesh -> SkeletonMeshSection.read(data)
-                else -> UnimplementedResource(header.sectionId, header.sectionType, data)
+            val node = try {
+                when (header.sectionType) {
+                    SectionType.S00_End -> End(header.sectionId)
+                    SectionType.S01_Directory -> Directory(header.sectionId)
+                    SectionType.S05_ParticleGenerator -> ParticleGeneratorSection.read(data)
+                    SectionType.S07_EffectRoutine -> EffectRoutineSection.read(data)
+                    SectionType.S19_ParticleKeyFrameData -> KeyFrameValueSection.read(data)
+                    SectionType.S20_Texture -> TextureSection.read(data)
+                    SectionType.S29_Skeleton -> SkeletonSection.read(data)
+                    SectionType.S2A_SkeletonMesh -> SkeletonMeshSection.read(data)
+                    SectionType.S2B_SkeletonAnimation -> SkeletonAnimationSection.read(data)
+                    else -> UnimplementedResource(header.sectionId, header.sectionType, data)
+                }
+            } catch (e: Exception) {
+                Log.warn("Failed to parse ${header.sectionType} ${header.sectionId}: ${e.message}. Using direct ser/des for it.")
+                UnimplementedResource(header.sectionId, header.sectionType, data)
             }
 
             currentDirectory?.children?.add(node)
@@ -53,7 +68,7 @@ object DatTree {
 
     fun fromItemModel(raceGenderConfig: RaceGenderConfig, itemModelSlot: ItemModelSlot, itemModelId: Int): Directory {
         val file = DatFile.itemModel(raceGenderConfig, itemModelSlot, itemModelId)
-        return parse(file.readBytes())
+        return parse(file)
     }
 
 }
@@ -117,6 +132,15 @@ fun <T: DatResource> Directory.getChildren(type: KClass<T>): List<T> {
 
 fun Directory.getChildren(filter: (DatResource) -> Boolean): List<DatResource> {
     return children.filter(filter)
+}
+
+fun <T : DatResource> Directory.getChildrenRecursive(childType: KClass<T>): List<T> {
+    val match = children.filter { childType.isInstance(it) }.toMutableList()
+
+    val subdirectories = getChildren(Directory::class)
+    match += subdirectories.flatMap { it.getChildrenRecursive(childType) }
+
+    return children.mapNotNull { childType.safeCast(it) }
 }
 
 private fun Directory.sortChildren() {

@@ -16,6 +16,7 @@ import ximtool.misc.LogColor
 import ximtool.misc.WeaponJointMapping
 import ximtool.misc.WeaponType
 import ximtool.resource.*
+import ximtool.tools.RestoreFromBackup
 import java.io.File
 
 private const val texturePath  = "MogBlade/diffuse.dds"
@@ -28,7 +29,7 @@ private const val particleObjPath = "MogBlade/particle.obj"
 private const val destinationModelId = 268 // [Bronze Sword]
 
 fun main() {
-    RestoreFromBackup.run(destinationModelId)
+    RestoreFromBackup.runMainSub(destinationModelId)
     MogBlade.invoke()
 }
 
@@ -53,7 +54,7 @@ private class MogBladeApplier(val context: WeaponModContext) {
 
     fun apply() {
         val outputFile = DatFile.itemModel(context.race, context.itemModelSlot, destinationModelId)
-        val rootDirectory = DatTree.parse(outputFile.readBytes())
+        val rootDirectory = DatTree.parse(outputFile)
 
         rootDirectory.deleteRecursive { it.sectionType == SectionType.S20_Texture }
         rootDirectory.deleteRecursive { it.sectionType == SectionType.S2A_SkeletonMesh }
@@ -76,7 +77,7 @@ private class MogBladeApplier(val context: WeaponModContext) {
     }
 
     private fun makeShinySkeletonMesh(textureName: TextureName): SkeletonMesh {
-        val obj = ObjLoader.load(shinyObjPath)
+        val obj = ObjLoader.load(shinyObjPath, config = ObjLoaderConfig(verticalFlipUvs = true))
         applyObjTransform(obj)
 
         return ObjToSkeletonMeshConverter.convert(ObjToSkeletonMeshConfig(
@@ -93,7 +94,7 @@ private class MogBladeApplier(val context: WeaponModContext) {
     }
 
     private fun makeMatteSkeletonMesh(textureName: TextureName): SkeletonMesh {
-        val obj = ObjLoader.load(matteObjPath)
+        val obj = ObjLoader.load(matteObjPath, config = ObjLoaderConfig(verticalFlipUvs = true))
         applyObjTransform(obj)
 
         return ObjToSkeletonMeshConverter.convert(ObjToSkeletonMeshConfig(
@@ -108,7 +109,7 @@ private class MogBladeApplier(val context: WeaponModContext) {
     }
 
     private fun applyObjTransform(obj: ObjData) {
-        // Fixes the forward/up axis, flips the texture-coordinates, and ensures the moogle is facing outward.
+        // Fixes the forward/up axis, and ensures the moogle is facing outward.
         // (Alternatively, this could've been fixed in Blender)
         val zRotateSign = if (context.mainHand) { -1f } else { 1f }
         val rotation = Matrix4f().rotateZInPlace(zRotateSign * PI_f / 2f).rotateXInPlace(-PI_f / 2f)
@@ -119,10 +120,6 @@ private class MogBladeApplier(val context: WeaponModContext) {
 
         obj.normals.forEach {
             rotation.transformInPlace(it)
-        }
-
-        obj.uvs.forEach {
-            it.y = 1f - it.y
         }
     }
 

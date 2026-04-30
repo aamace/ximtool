@@ -3,9 +3,13 @@ package ximtool.resource
 import ximtool.math.Vector2f
 import ximtool.math.Vector3f
 
+class ObjLoaderConfig(
+    val verticalFlipUvs: Boolean = false
+)
+
 object ObjLoader {
 
-    fun load(path: String): ObjData {
+    fun load(path: String, config: ObjLoaderConfig = ObjLoaderConfig()): ObjData {
         val lines = ResourceReader.readLines(path)
 
         val obj = ObjData()
@@ -25,6 +29,10 @@ object ObjLoader {
             for (index in face.indices) {
                 obj.positionNormalPairing[index.p] = index.n
             }
+        }
+
+        if (config.verticalFlipUvs) {
+            obj.uvs.forEach { it.y = 1f - it.y }
         }
 
         return obj
@@ -51,7 +59,6 @@ object ObjLoader {
         return VertexIndex(parts[0].toInt() - 1, parts[2].toInt() - 1, parts[1].toInt() - 1,)
     }
 
-
 }
 
 class Face(val indices: Array<VertexIndex>)
@@ -62,11 +69,21 @@ class VertexIndex(
     val u: Int,
 )
 
-
 class ObjData(
-    val vertices: ArrayList<Vector3f> = ArrayList(),
-    val normals: ArrayList<Vector3f> = ArrayList(),
-    val uvs: ArrayList<Vector2f> = ArrayList(),
-    val faces: ArrayList<Face> = ArrayList(),
+    val vertices: MutableList<Vector3f> = ArrayList(),
+    val normals: MutableList<Vector3f> = ArrayList(),
+    val uvs: MutableList<Vector2f> = ArrayList(),
+    val faces: MutableList<Face> = ArrayList(),
+    val materialName: String? = null,
     val positionNormalPairing: MutableMap<Int, Int> = HashMap(),
+)
+
+data class ObjMtl(
+    var name: String,
+    var ambient: Vector3f = Vector3f(1f, 1f, 1f),
+    var diffuse: Vector3f = Vector3f(1f, 1f, 1f),
+    var specularColor: Vector3f = Vector3f(0f, 0f, 0f),
+    var specularPower: Float = 0f,
+    val ambientMap: String? = null,
+    val diffuseMap: String? = ambientMap,
 )

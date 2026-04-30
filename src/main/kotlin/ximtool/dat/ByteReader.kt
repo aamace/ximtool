@@ -69,7 +69,8 @@ class ByteReader(val bytes: ByteArray) {
     }
 
     fun read16(offset: Int): Int {
-        return bytes[offset].toInt() or (bytes[offset+1].toInt() shl 8)
+        position = offset
+        return next16()
     }
 
     fun next32() : Int {
@@ -166,6 +167,11 @@ class ByteReader(val bytes: ByteArray) {
         return this
     }
 
+    fun write(floatArray: FloatArray): ByteReader {
+        floatArray.forEach { writeFloat(it) }
+        return this
+    }
+
     fun write(vector: Vector3f): ByteReader {
         writeFloat(vector.x)
         writeFloat(vector.y)
@@ -233,6 +239,10 @@ class ByteReader(val bytes: ByteArray) {
 
     fun subArray(length: Int, offset: Int = position): ByteArray {
         return bytes.sliceArray(offset until (offset + length))
+    }
+
+    fun remaining(): ByteArray {
+        return subArray(length = bytes.size - position)
     }
 
     fun nextVector2f(): Vector2f {

@@ -55,6 +55,26 @@ data class KeyFrameValue(
     override fun serialize() = KeyFrameValueSerializer.serialize(datId, entries)
 }
 
+class Texture(
+    override val datId: DatId,
+    val header: TextureData.TextureHeader,
+    val body: TextureData.TextureBody,
+): DatResource {
+    override val sectionType: SectionType = SectionType.S20_Texture
+    override fun serialize() = TextureSerializer.serialize(this)
+}
+
+class Skeleton(
+    override val datId: DatId,
+    val joints: List<SkeletonData.Joint>,
+    val jointReferences: List<SkeletonData.WrappedJoint>,
+    val boundingBoxes: List<SkeletonData.BoundingBox>,
+    private val raw: ByteArray,
+): DatResource {
+    override val sectionType: SectionType = SectionType.S29_Skeleton
+    override fun serialize() = raw
+}
+
 data class SkeletonMesh(
     override val datId: DatId,
     val flagHeader: SkeletonMeshData.FlagHeader,
@@ -68,6 +88,16 @@ data class SkeletonMesh(
     override fun serialize() = SkeletonMeshSerializer.serialize(this)
 }
 
+class SkeletonAnimation(
+    override val datId: DatId,
+    val numFrames: Int,
+    val keyFrameDuration: Float,
+    val jointKeyFrames: Map<Int, SkeletonAnimationData.KeyFrames>,
+    private val raw: ByteArray,
+): DatResource {
+    override val sectionType: SectionType = SectionType.S2B_SkeletonAnimation
+    override fun serialize() = raw
+}
 
 class End(override val datId: DatId = DatId.end): DatResource {
     override val sectionType: SectionType = SectionType.S00_End

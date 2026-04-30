@@ -1,6 +1,7 @@
 package ximtool.misc
 
 import ximtool.misc.LogColor.None
+import java.io.PrintStream
 
 enum class LogColor(val code: String) {
     None("\u001B[0m"),
@@ -14,12 +15,18 @@ enum class LogColor(val code: String) {
 
 object Log {
 
+    var out: PrintStream = System.out
+
     fun debug(msg: String, color: LogColor = None) {
-        println("${LogColor.Yellow.code}[DEBUG] ${color.code}$msg${None.code}")
+        out.println("${LogColor.Teal.code}[DEBUG] ${color.code}$msg${None.code}")
     }
 
     fun info(msg: String, color: LogColor = None) {
-        println("[INFO] ${color.code}$msg${None.code}")
+        out.println("[INFO] ${color.code}$msg${None.code}")
+    }
+
+    fun warn(msg: String, color: LogColor = None) {
+        out.println("${LogColor.Yellow.code}[WARN] ${color.code}$msg${None.code}")
     }
 
 }

@@ -385,6 +385,24 @@ object ParticleInitializers {
         override val opCode = 0x48
     }
 
+    data class AudioRangeSetup(
+        var nearThreshold: Float,
+        var farThreshold: Float,
+        var unknown: Float,
+    ): ParticleInitializer {
+
+        override val opCode = 0x4C
+
+        override fun sizeInBytes() = 16
+
+        override fun write(byteReader: ByteReader, allocationOffset: Int, context: InitializerContext) {
+            byteReader.write(initializer = this, allocationOffset = allocationOffset)
+            byteReader.writeFloat(nearThreshold)
+            byteReader.writeFloat(farThreshold)
+            byteReader.writeFloat(unknown)
+        }
+    }
+
     data class ProjectionBiasInitializer(
         val param0: Float,
         val param1: Float,

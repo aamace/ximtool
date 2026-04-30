@@ -410,4 +410,26 @@ class Matrix4f {
         return this
     }
 
+    fun affineInverse(): Matrix4f {
+        val pInv = Matrix3f.truncate(this).invert()
+        val tInv = pInv.transform(getTranslationVector()) * -1f
+
+        val extended = extend(pInv)
+        extended.translateDirect(tInv)
+
+        return extended
+    }
+
+    fun translateDirect(vector3f: Vector3f) : Matrix4f {
+        return translateDirect(vector3f.x, vector3f.y, vector3f.z)
+    }
+
+    fun translateDirect(x: Float, y: Float, z: Float) : Matrix4f {
+        m[12] += x
+        m[13] += y
+        m[14] += z
+        return this
+    }
+
+
 }

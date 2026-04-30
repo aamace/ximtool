@@ -16,7 +16,7 @@ object EffectRoutineSerializer {
         size += config.effects.sumOf { it.sizeInBytes() }.padTo16()
 
         val completionOffset = size
-        size += config.effects.sumOf { it.sizeInBytes() }.padTo16()
+        size += config.onCompleteEffects.sumOf { it.sizeInBytes() }.padTo16()
 
         val out = ByteReader(ByteArray(size))
 
