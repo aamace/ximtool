@@ -119,23 +119,24 @@ private class GltfToSkeletonMesh(val config: GltfToSkeletonMeshConfig) {
 
 }
 
-private class JointMapper(config: GltfToSkeletonMeshConfig) {
+private class JointMapper(val config: GltfToSkeletonMeshConfig) {
 
-    private val jointMapping = LinkedHashMap<Int, Int>()
+    private val arrayIndexLookup = LinkedHashMap<Int, Int>()
 
     init {
         config.gltfMeshPrimitives.forEach { mapPrimitive(it.primitive) }
     }
 
-    operator fun get(jointIndex: Int) = jointMapping[jointIndex] ?: throw IllegalStateException("Missing joint remapping")
+    operator fun get(jointIndex: Int) = arrayIndexLookup[jointIndex] ?: throw IllegalStateException("Missing joint remapping")
 
     fun toList(): SkeletonMeshData.JointListSection {
-        return SkeletonMeshData.JointListSection(jointIndices = jointMapping.keys.toList())
+        val skeletonIndexLookup = config.gltfData.skeletonIndexLookup
+        return SkeletonMeshData.JointListSection(jointIndices = arrayIndexLookup.keys.map { skeletonIndexLookup[it] })
     }
 
     private fun mapPrimitive(primitive: GltfMeshPrimitive) {
         val allIndices = (primitive.vertices.map { it.j0.index } + primitive.vertices.map { it.j1.index }).distinct()
-        for (index in allIndices) { jointMapping.getOrPut(index) { jointMapping.size } }
+        for (index in allIndices) { arrayIndexLookup.getOrPut(index) { arrayIndexLookup.size } }
         check(allIndices.size <= 127) { "The mesh is attached to too many joints: ${allIndices.size} (Max: 127)" }
     }
 

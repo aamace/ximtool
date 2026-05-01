@@ -14,11 +14,11 @@ object GltfImporter {
         val model = GltfModels.create(asset)
 
         val skin = model.skinModels.first()
-        val jointLookup = skin.joints.map { JointExtras.deserialize(it.extras).index  }
+        val skeletonIndexLookup = skin.joints.map { JointExtras.deserialize(it.extras).index  }
         val inverseBindingMatrices = readInverseBindMatrics(skin.inverseBindMatrices)
 
         val meshes = model.meshModels.map { handle(it) }
-        return GltfData(resource, meshes, jointLookup, inverseBindingMatrices)
+        return GltfData(resource, meshes, skeletonIndexLookup, inverseBindingMatrices)
     }
 
     private fun handle(meshModel: MeshModel): GltfMesh {
@@ -180,6 +180,6 @@ class GltfMesh(
 class GltfData(
     val file: File,
     val meshes: List<GltfMesh>,
-    val jointLookup: List<Int>,
+    val skeletonIndexLookup: List<Int>,
     val inverseBindingMatrices: List<Matrix4f>,
 )
