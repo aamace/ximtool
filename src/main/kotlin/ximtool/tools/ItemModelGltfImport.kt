@@ -3,33 +3,38 @@ package ximtool.tools
 import ximtool.dat.*
 import ximtool.gltf.GltfImporter
 import ximtool.misc.Log
-import ximtool.misc.LogColor
 import ximtool.resource.TempFile
 
-private val raceGender = RaceGenderConfig.Mithra
-private val itemModelSlot = ItemModelSlot.Body
-private const val importModelId = 0
-
 fun main() {
-    RestoreFromBackup.run(raceGender, itemModelSlot, importModelId)
-
-    Log.info("Working on ${raceGender.name}", LogColor.Green)
-    ItemModelGltfImporter(raceGender, itemModelSlot).apply()
+    ItemModelGltfImporter(
+        race = RaceGenderConfig.Mithra,
+        itemModelSlot = ItemModelSlot.Body,
+        itemModelId = 0,
+        config = ModelGltfImporterConfig(),
+    ).apply()
 }
 
-class ItemModelGltfImporter(val race: RaceGenderConfig, val itemModelSlot: ItemModelSlot) {
+class ItemModelGltfImporter(
+    val race: RaceGenderConfig,
+    val itemModelSlot: ItemModelSlot,
+    val itemModelId: Int,
+    val config: ModelGltfImporterConfig,
+) {
 
-    private val path = "Gltf-$race-$itemModelSlot-$importModelId"
+    private val path = "Gltf-$race-$itemModelSlot-$itemModelId"
 
     fun apply() {
-        val item = DatFile.itemModel(race, itemModelSlot, importModelId)
+        RestoreFromBackup.run(race, itemModelSlot, itemModelId)
+
+        val item = DatFile.itemModel(race, itemModelSlot, itemModelId)
         val itemRoot = DatTree.parse(item)
 
-        val gltfFile = TempFile.getFile("$path/model.gltf")
+        val gltfFile = TempFile.getFile("$path/${config.modelFileName}")
         val gltfData = GltfImporter.get(gltfFile)
 
         ModelGltfImporter(itemRoot, gltfData).import()
         item.writeBytes(itemRoot.serialize())
+        Log.info("Complete!")
     }
 
 }

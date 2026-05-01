@@ -21,7 +21,7 @@ object EquipmentModelTable {
             }
 
             val offset = subTableEntry.tableOffset + (itemModelId - cumulativeEntryCount)
-            return FileTables[offset] ?: throw IllegalStateException("No fail-table entry for item-model $itemModelSlot/$raceGenderConfig")
+            return FileTables[offset] ?: throw IllegalStateException("No file-table entry for item-model $itemModelSlot/$raceGenderConfig/$itemModelId")
         }
 
         throw IllegalStateException("Failed to find item-model mapping $itemModelSlot/$raceGenderConfig")

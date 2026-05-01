@@ -5,15 +5,8 @@ import java.net.URI
 
 object ResourceReader {
 
-    fun getUri(name: String): URI {
-        return object {}.javaClass.getResource("/$name")
-            ?.toURI()
-            ?: throw IllegalStateException("No such resource: $name")
-    }
-
     fun getInputStream(name: String): InputStream {
-        return object {}.javaClass.getResource("/$name")
-            ?.openStream()
+        return object {}.javaClass.getResourceAsStream("/$name")
             ?: throw IllegalStateException("No such resource: $name")
     }
 

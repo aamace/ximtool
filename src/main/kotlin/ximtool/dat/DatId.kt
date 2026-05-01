@@ -8,7 +8,7 @@ data class DatId(val id: String) {
     }
 
     init {
-        check(id.toCharArray().size == 4) { "ID must consist of 4 characters" }
+        check(id.toCharArray().size == 4) { "ID must consist of 4 characters, was: [$id]" }
     }
 
     override fun toString(): String {

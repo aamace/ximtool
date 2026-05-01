@@ -25,7 +25,7 @@ private class GltfAnimationConverterInstance(val context: GltfExporter, val skel
 
     init {
         animationModel.name = animation.datId.id
-        val keyFrameIndices = (0 until animation.numFrames).map { it.toFloat() * animation.keyFrameDuration / 30f }
+        val keyFrameIndices = (0 until animation.numFrames).map { it.toFloat() * animation.keyFrameDuration }
         keyFrameTimestamps = context.allocator.allocateFloats(keyFrameIndices)
     }
 

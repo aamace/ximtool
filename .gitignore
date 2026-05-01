@@ -7,6 +7,7 @@ build
 .kotlin/
 output/
 target/
+settings.ini
 ximtool.iml
 !**/src/main/**/out/
 !**/src/test/**/out/

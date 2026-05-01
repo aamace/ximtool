@@ -23,14 +23,14 @@ object TempFile {
         file.parentFile.mkdirs()
         file.createNewFile()
 
-        Log.info("Working with ${file.path}", LogColor.Blue)
+        Log.info("Working with ${file.absolutePath}", LogColor.Blue)
         return file
     }
 
     fun getFile(path: String): File {
         val tempPath = if (path.startsWith("output/") || path.startsWith("output\\")) { path } else { "output/$path" }
         val file = File(tempPath)
-        Log.info("Trying to fetch ${file.path}", LogColor.Blue)
+        Log.info("Trying to fetch ${file.absolutePath}", LogColor.Blue)
         return file
     }
 

@@ -36,7 +36,7 @@ object FileTables {
     }
 
     private fun loadTable(tableIndex: Int) {
-        val prefix = Environment.ffxiDir + if (tableIndex == 1) { "" } else { "ROM${tableIndex}" }
+        val prefix = Environment.ffxiDir + if (tableIndex == 1) { "/" } else { "/ROM${tableIndex}" }
         val postfix = if (tableIndex == 1) { "" } else { tableIndex.toString() }
 
         val vTable = File("${prefix}/VTABLE${postfix}.DAT").readBytes()

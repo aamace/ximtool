@@ -19,14 +19,22 @@ object Log {
 
     fun debug(msg: String, color: LogColor = None) {
         out.println("${LogColor.Teal.code}[DEBUG] ${color.code}$msg${None.code}")
+        out.flush()
     }
 
     fun info(msg: String, color: LogColor = None) {
         out.println("[INFO] ${color.code}$msg${None.code}")
+        out.flush()
     }
 
     fun warn(msg: String, color: LogColor = None) {
         out.println("${LogColor.Yellow.code}[WARN] ${color.code}$msg${None.code}")
+        out.flush()
+    }
+
+    fun error(msg: String, color: LogColor = None) {
+        out.println("${LogColor.Red.code}[ERROR] ${color.code}$msg${None.code}")
+        out.flush()
     }
 
 }

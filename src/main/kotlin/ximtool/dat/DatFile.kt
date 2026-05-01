@@ -25,21 +25,23 @@ class DatFile private constructor(val path: String) {
 }
 
 fun DatFile.readBytes(): ByteArray {
-    Log.info("Reading from $path")
-    return toFile().readBytes()
+    val file = toFile()
+    Log.info("Reading from ${file.absolutePath}")
+    return file.readBytes()
 }
 
 fun DatFile.writeBytes(byteArray: ByteArray) {
-    val file = toFile()
+    val readFile = toFile()
+    val writeFile = toWriteFile()
 
     val backup = getBackupFile()
-    if (!backup.exists()) {
-        Log.info("Creating backup $path", LogColor.Blue)
-        file.copyTo(backup)
+    if (!backup.exists() && readFile == writeFile) {
+        Log.info("Creating backup ${backup.absolutePath}", LogColor.Blue)
+        writeFile.copyTo(backup)
     }
 
-    Log.info("Writing to $path", LogColor.Blue)
-    file.writeBytes(byteArray)
+    Log.info("Writing to ${writeFile.absolutePath}", LogColor.Blue)
+    writeFile.writeBytes(byteArray)
 }
 
 fun DatFile.restoreFromBackup() {
@@ -52,11 +54,16 @@ fun DatFile.restoreFromBackup() {
 }
 
 private fun DatFile.toFile(): File {
-    val filePath = Environment.ffxiDir + path
+    val filePath = "${Environment.ffxiDir}/${path}"
     return File(filePath)
 }
 
+private fun DatFile.toWriteFile(): File {
+    val filePath = "${Environment.importDestinationDir}/$path"
+    return File(filePath).also { it.parentFile.mkdirs() }
+}
+
 private fun DatFile.getBackupFile(): File {
-    val backupPath = Environment.ffxiDir + path + ".bak"
+    val backupPath = "${Environment.ffxiDir}/${path}.bak"
     return File(backupPath)
 }
